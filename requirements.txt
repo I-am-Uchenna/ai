@@ -1,0 +1,15 @@
+# ASCII Particle Universe - No external dependencies required!
+# This project uses only Python standard library
+
+# Python 3.6+ required
+# Built-in modules used:
+# - sys (system-specific parameters)
+# - tty (terminal control)
+# - termios (POSIX terminal control)
+# - time (time-related functions)
+# - random (random number generation)
+# - math (mathematical functions)
+# - os (operating system interface)
+# - dataclasses (data classes)
+# - typing (type hints)
+# - select (I/O multiplexing)
