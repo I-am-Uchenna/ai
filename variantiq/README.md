@@ -20,83 +20,133 @@ VariantIQ transforms genomic variant data into actionable commercial intelligenc
 
 ## Quick Start
 
-### Prerequisites
-
-- Python 3.11+
-- PostgreSQL 15+
-- Redis 7+
-- Docker & Docker Compose (optional)
-
-### Installation
+### One-Command Setup (Recommended)
 
 ```bash
 # Clone repository
 git clone https://github.com/yourusername/variantiq.git
 cd variantiq
 
-# Install dependencies
-cd backend
-pip install -r requirements.txt
+# Configure environment (add your API keys)
+cp backend/.env.example backend/.env
+nano backend/.env  # Add NCBI_API_KEY (highly recommended)
 
-# Set up environment
-cp .env.example .env
-# Edit .env with your configuration
-
-# Initialize database
-alembic upgrade head
-
-# Load initial data
-python scripts/load_initial_data.py
-
-# Run development server
-uvicorn app.main:app --reload
+# Build, start, and initialize everything
+make quickstart
 ```
 
-### Docker Quick Start
+**That's it!** In ~3 minutes you'll have:
+- PostgreSQL database with genomic data
+- Redis cache
+- FastAPI backend running
+- 15 curated drugs loaded
+- 50+ sample variants from ClinVar
+- PubMed publications
 
-```bash
-docker-compose up -d
-```
+### Access Points
 
-Access the application at `http://localhost:8000`
+- **API**: http://localhost:8000
+- **API Docs (Swagger)**: http://localhost:8000/docs
+- **PgAdmin**: http://localhost:5050 (admin@variantiq.com / admin)
+- **Health Check**: http://localhost:8000/health
 
-API documentation at `http://localhost:8000/docs`
+### Prerequisites
+
+**Option A (Recommended):** Docker & Docker Compose
+- No Python installation needed
+- Completely isolated environment
+- One-command setup
+
+**Option B (Manual):**
+- Python 3.11+
+- PostgreSQL 15+
+- Redis 7+
+
+See [GETTING_STARTED.md](GETTING_STARTED.md) for detailed instructions.
 
 ## Usage Examples
 
-### API Query
+### 1. Natural Language Query
+
+```bash
+curl -X POST http://localhost:8000/api/v1/query/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "EGFR L858R druggability and clinical trials",
+    "options": {
+      "include_trials": true,
+      "include_drugs": true,
+      "include_publications": true
+    }
+  }'
+```
+
+### 2. Search Variants
+
+```bash
+# List all variants
+curl http://localhost:8000/api/v1/variants/
+
+# Filter by gene
+curl http://localhost:8000/api/v1/variants/?gene=EGFR
+
+# Search
+curl http://localhost:8000/api/v1/variants/?search=L858R
+
+# Get database statistics
+curl http://localhost:8000/api/v1/variants/stats/summary
+```
+
+### 3. Get Variant Intelligence
+
+```bash
+# Comprehensive analysis for variant ID 1
+curl http://localhost:8000/api/v1/intelligence/1
+
+# Gene-level summary
+curl http://localhost:8000/api/v1/intelligence/gene/EGFR/summary
+```
+
+### 4. Python Client
 
 ```python
 import requests
 
-response = requests.post(
-    "http://localhost:8000/api/v1/query",
-    json={
-        "query": "What is the druggability and market potential of EGFR L858R?",
-        "options": {
-            "include_trials": True,
-            "include_patents": True,
-            "include_financials": True
-        }
-    }
-)
+BASE_URL = "http://localhost:8000/api/v1"
 
-data = response.json()
-print(f"Druggability Score: {data['druggability']['score']}")
-print(f"Market Size: ${data['market']['size_usd']:,}")
+# Search for EGFR variants
+variants = requests.get(f"{BASE_URL}/variants/", params={"gene": "EGFR"}).json()
+
+# Get intelligence for first variant
+if variants:
+    variant_id = variants[0]["variant_id"]
+    intel = requests.get(f"{BASE_URL}/intelligence/{variant_id}").json()
+
+    print(f"Variant: {intel['variant']['variant_name']}")
+    print(f"Gene: {intel['variant']['gene_symbol']}")
+
+    if intel['druggability']:
+        print(f"Druggability: {intel['druggability']['score']:.2f}")
+
+    print(f"Related Drugs: {len(intel['drugs'])}")
+    if intel['clinical_trials']:
+        print(f"Clinical Trials: {intel['clinical_trials']['total']}")
 ```
 
-### CLI Interface
+### 5. Load Data
 
 ```bash
-# Query a variant
-variantiq query "EGFR L858R druggability"
+# Load all data sources
+make etl
 
-# Generate full report
-variantiq report --variant "EGFR L858R" --format pdf
+# Load specific sources
+make etl-drugs          # Curated drug database
+make etl-clinvar        # Genetic variants from ClinVar
+make etl-trials         # Clinical trials
+make etl-pubmed         # Scientific publications
 
-# Update data sources
-variantiq update --source clinvar
+# Full refresh (reload everything)
+make etl-full
 ```
 
 ## Architecture
